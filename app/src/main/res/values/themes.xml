@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.CatPlayground" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#FFF7EF</item>
-        <item name="android:navigationBarColor">#FFF7EF</item>
+        <item name="android:statusBarColor">@color/bg_pastel</item>
+        <item name="android:navigationBarColor">@color/bg_pastel</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 </resources>

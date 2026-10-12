@@ -33,7 +33,7 @@ interface CatDao {
     @Query("SELECT * FROM history ORDER BY retrievalTimestamp DESC LIMIT 50")
     fun getRecentHistory(): Flow<List<HistoryCatEntity>>
 
-    @Query("DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY retrievalTimestamp DESC LIMIT 50)")
+    @Query("DELETE FROM history WHERE id NOT IN (SELECT id FROM (SELECT id FROM history ORDER BY retrievalTimestamp DESC LIMIT 50))")
     suspend fun trimHistory()
 
     @Query("DELETE FROM history")

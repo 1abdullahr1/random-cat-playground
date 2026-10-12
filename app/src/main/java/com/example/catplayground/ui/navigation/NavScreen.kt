@@ -12,6 +12,7 @@ sealed class NavScreen(val route: String, val title: String, val icon: ImageVect
     data object Settings : NavScreen("settings", "Settings", Icons.Rounded.Settings)
 
     companion object {
-        val bottomNavItems = listOf(Explore, Saved, Settings)
+        val bottomNavItems: List<NavScreen>
+            get() = listOf(Explore, Saved, Settings)
     }
 }
