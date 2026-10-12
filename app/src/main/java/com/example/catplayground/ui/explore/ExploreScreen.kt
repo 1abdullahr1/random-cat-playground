@@ -1,9 +1,6 @@
 package com.example.catplayground.ui.explore
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -203,16 +200,11 @@ fun ExploreScreen(
                         }
 
                         // Loading overlay indicator
-                        AnimatedVisibility(
-                            visible = uiState.isLoading,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(12.dp)
-                        ) {
+                        if (uiState.isLoading) {
                             Box(
                                 modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(12.dp)
                                     .size(36.dp)
                                     .shadow(4.dp, CircleShape)
                                     .clip(CircleShape)
