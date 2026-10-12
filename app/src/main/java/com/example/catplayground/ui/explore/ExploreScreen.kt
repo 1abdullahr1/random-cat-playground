@@ -92,6 +92,7 @@ import com.example.catplayground.ui.components.ClayChip
 import com.example.catplayground.ui.components.ClayTopBar
 import com.example.catplayground.ui.theme.ClayCardShape
 import com.example.catplayground.ui.theme.PastelButter
+import androidx.compose.foundation.ExperimentalFoundationApi
 import com.example.catplayground.ui.theme.PastelLavender
 import com.example.catplayground.ui.theme.PastelMint
 import com.example.catplayground.ui.theme.PrimaryPurple
@@ -99,7 +100,7 @@ import com.example.catplayground.ui.theme.TextDark
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
     viewModel: ExploreViewModel,
@@ -205,7 +206,6 @@ fun ExploreScreen(
                         if (uiState.catFeed.isNotEmpty()) {
                             HorizontalPager(
                                 state = pagerState,
-                                beyondViewportPageCount = 1,
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
                                 val cat = uiState.catFeed.getOrNull(page)

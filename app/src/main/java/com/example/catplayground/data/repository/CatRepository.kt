@@ -149,13 +149,10 @@ class CatRepository(
             )
             catDao.insertFavorite(favEntity)
 
-            // Cache offline image file in the background without blocking the UI
-            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                val localPath = downloadAndCacheLocally(cat.id, cat.imageUrl)
-                if (localPath != null) {
-                    val updatedEntity = favEntity.copy(localFilePath = localPath)
-                    catDao.insertFavorite(updatedEntity)
-                }
+            // Cache offline image file
+            val localPath = downloadAndCacheLocally(cat.id, cat.imageUrl)
+            if (localPath != null) {
+                catDao.insertFavorite(favEntity.copy(localFilePath = localPath))
             }
             true
         }
