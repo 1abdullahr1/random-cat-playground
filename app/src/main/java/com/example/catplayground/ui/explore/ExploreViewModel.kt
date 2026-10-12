@@ -1,41 +1,52 @@
 package com.example.catplayground.ui.explore
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.imageLoader
+import coil.request.ImageRequest
 import com.example.catplayground.data.repository.CatRepository
 import com.example.catplayground.domain.model.CatImage
 import com.example.catplayground.domain.model.VisualFilter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ExploreUiState(
-    val currentCat: CatImage? = null,
+    val catFeed: List<CatImage> = emptyList(),
+    val currentIndex: Int = 0,
     val isLoading: Boolean = false,
     val selectedTag: String = "All",
-    val availableTags: List<String> = listOf("All", "Cute", "Sleepy", "Orange", "Kitten", "Funny", "GIF"),
+    val availableTags: List<String> = listOf("All", "Cute", "Sleepy", "Orange", "Kitten", "Funny"),
     val activeFilter: VisualFilter = VisualFilter.ORIGINAL,
-    val errorMessage: String? = null,
-    val isFavorite: Boolean = false
-)
+    val isGifMode: Boolean = false,
+    val isFavorite: Boolean = false,
+    val showSwipeHint: Boolean = true
+) {
+    val currentCat: CatImage?
+        get() = catFeed.getOrNull(currentIndex)
+}
 
 class ExploreViewModel(
-    private val repository: CatRepository
+    private val repository: CatRepository,
+    private val appContext: Context? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
-    private var fetchJob: Job? = null
-    private var prefetchJob: Job? = null
-    private var upcomingCat: CatImage? = null
+    private var feedJob: Job? = null
+    private var favoriteJob: Job? = null
+    private var isPrefetching = false
 
     init {
         loadTags()
-        fetchNextCat(initial = true)
+        reloadFeed()
     }
 
     private fun loadTags() {
@@ -44,7 +55,6 @@ class ExploreViewModel(
                 val apiTags = repository.getTags()
                 val tags = mutableListOf("All")
                 tags.addAll(apiTags.map { it.replaceFirstChar { char -> char.uppercase() } })
-                if (!tags.contains("GIF")) tags.add("GIF")
                 _uiState.update { it.copy(availableTags = tags.distinct()) }
             } catch (e: Exception) {
                 // Keep default tags
@@ -55,97 +65,155 @@ class ExploreViewModel(
     fun selectTag(tag: String) {
         if (_uiState.value.selectedTag == tag) return
         _uiState.update { it.copy(selectedTag = tag) }
-        upcomingCat = null
-        fetchNextCat()
+        reloadFeed()
+    }
+
+    fun setGifMode(isGif: Boolean) {
+        if (_uiState.value.isGifMode == isGif) return
+        _uiState.update { it.copy(isGifMode = isGif) }
+        reloadFeed()
     }
 
     fun setFilter(filter: VisualFilter) {
         _uiState.update { it.copy(activeFilter = filter) }
     }
 
-    fun fetchNextCat(initial: Boolean = false) {
-        if (_uiState.value.isLoading && !initial) return
+    fun onPageChanged(newIndex: Int) {
+        _uiState.update { it.copy(currentIndex = newIndex, showSwipeHint = false) }
+        val cat = _uiState.value.catFeed.getOrNull(newIndex)
+        if (cat != null) {
+            listenToFavorite(cat.id)
+        }
+        // If nearing end of loaded buffer, automatically fetch more ahead!
+        if (newIndex >= _uiState.value.catFeed.size - 3) {
+            fetchMoreCats()
+        }
+    }
 
-        fetchJob?.cancel()
-        fetchJob = viewModelScope.launch {
-            // If upcoming cat is pre-fetched and matches criteria, display immediately!
-            if (upcomingCat != null && !initial) {
-                val next = upcomingCat!!
-                upcomingCat = null
-                _uiState.update {
-                    it.copy(
-                        currentCat = next,
-                        isFavorite = next.isFavorite,
-                        errorMessage = null,
-                        isLoading = false
-                    )
+    fun dismissSwipeHint() {
+        _uiState.update { it.copy(showSwipeHint = false) }
+    }
+
+    fun reloadFeed() {
+        feedJob?.cancel()
+        feedJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, catFeed = emptyList(), currentIndex = 0) }
+            val initialBatch = mutableListOf<CatImage>()
+            val tag = _uiState.value.selectedTag
+            val isGif = _uiState.value.isGifMode
+            val filterTag = if (tag.equals("All", ignoreCase = true)) null else tag
+
+            for (i in 0 until 3) {
+                try {
+                    val cat = repository.fetchCat(tag = filterTag, isGif = isGif)
+                    initialBatch.add(cat)
+                    preloadImage(cat.imageUrl)
+                } catch (e: Exception) {
+                    // Transparent fallback
                 }
-                listenToFavorite(next.id)
-                prefetchUpcomingCat()
-                return@launch
             }
 
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-
-            try {
-                val tag = _uiState.value.selectedTag
-                val isGif = tag.equals("GIF", ignoreCase = true)
-                val filterTag = if (tag == "All" || isGif) null else tag
-
-                val cat = repository.fetchCat(tag = filterTag, isGif = isGif)
+            if (initialBatch.isNotEmpty()) {
                 _uiState.update {
                     it.copy(
-                        currentCat = cat,
-                        isFavorite = cat.isFavorite,
+                        catFeed = initialBatch,
                         isLoading = false,
-                        errorMessage = null
+                        isFavorite = initialBatch.first().isFavorite
                     )
                 }
-                listenToFavorite(cat.id)
-                prefetchUpcomingCat()
-            } catch (e: Exception) {
-                // Keep existing cat visible and report error clearly!
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Could not fetch new cat: ${e.localizedMessage ?: "Network issue"}"
-                    )
+                listenToFavorite(initialBatch.first().id)
+                fetchMoreCats()
+            } else {
+                // Guaranteed fallback
+                try {
+                    val fallback = repository.fetchCat(tag = null, isGif = false)
+                    initialBatch.add(fallback)
+                    preloadImage(fallback.imageUrl)
+                    _uiState.update {
+                        it.copy(
+                            catFeed = initialBatch,
+                            isLoading = false,
+                            isFavorite = fallback.isFavorite
+                        )
+                    }
+                    listenToFavorite(fallback.id)
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
     }
 
-    private fun prefetchUpcomingCat() {
-        prefetchJob?.cancel()
-        prefetchJob = viewModelScope.launch {
+    fun fetchMoreCats(count: Int = 3) {
+        if (isPrefetching) return
+        isPrefetching = true
+        viewModelScope.launch {
             try {
                 val tag = _uiState.value.selectedTag
-                val isGif = tag.equals("GIF", ignoreCase = true)
-                val filterTag = if (tag == "All" || isGif) null else tag
-                upcomingCat = repository.fetchCat(tag = filterTag, isGif = isGif)
-            } catch (e: Exception) {
-                upcomingCat = null
+                val isGif = _uiState.value.isGifMode
+                val filterTag = if (tag.equals("All", ignoreCase = true)) null else tag
+
+                val newCats = mutableListOf<CatImage>()
+                for (i in 0 until count) {
+                    try {
+                        val cat = repository.fetchCat(tag = filterTag, isGif = isGif)
+                        newCats.add(cat)
+                        preloadImage(cat.imageUrl)
+                    } catch (e: Exception) {
+                        // Silent fallback
+                    }
+                }
+                if (newCats.isNotEmpty()) {
+                    _uiState.update { state ->
+                        state.copy(catFeed = (state.catFeed + newCats).distinctBy { it.id })
+                    }
+                }
+            } finally {
+                isPrefetching = false
+            }
+        }
+    }
+
+    private fun preloadImage(url: String) {
+        appContext?.let { context ->
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val request = ImageRequest.Builder(context)
+                        .data(url)
+                        .crossfade(true)
+                        .build()
+                    context.imageLoader.enqueue(request)
+                } catch (e: Exception) {
+                    // Ignore preloading issues
+                }
             }
         }
     }
 
     private fun listenToFavorite(catId: String) {
-        viewModelScope.launch {
+        favoriteJob?.cancel()
+        favoriteJob = viewModelScope.launch {
             repository.isFavoriteFlow(catId).collect { isFav ->
                 _uiState.update { it.copy(isFavorite = isFav) }
             }
         }
     }
 
-    fun toggleFavorite() {
-        val cat = _uiState.value.currentCat ?: return
+    fun toggleFavorite(): Boolean {
+        val cat = _uiState.value.currentCat ?: return false
+        val newFavState = !cat.isFavorite
         viewModelScope.launch {
-            val newStatus = repository.toggleFavorite(cat)
-            _uiState.update { it.copy(isFavorite = newStatus) }
+            repository.toggleFavorite(cat)
+            _uiState.update { state ->
+                val updatedFeed = state.catFeed.map {
+                    if (it.id == cat.id) it.copy(isFavorite = newFavState) else it
+                }
+                state.copy(
+                    catFeed = updatedFeed,
+                    isFavorite = newFavState
+                )
+            }
         }
-    }
-
-    fun dismissError() {
-        _uiState.update { it.copy(errorMessage = null) }
+        return newFavState
     }
 }

@@ -47,6 +47,7 @@ import com.example.catplayground.ui.settings.SettingsViewModel
 import com.example.catplayground.ui.theme.PastelLavender
 import com.example.catplayground.ui.theme.PrimaryPurple
 import com.example.catplayground.ui.theme.TextDark
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.catplayground.ui.theme.TextSecondary
 
 @Composable
@@ -69,7 +70,7 @@ fun AppNavigation(
                     currentRoute = currentRoute ?: NavScreen.Explore.route,
                     onNavigate = { route ->
                         navController.navigate(route) {
-                            popUpTo(NavScreen.Explore.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
                             launchSingleTop = true

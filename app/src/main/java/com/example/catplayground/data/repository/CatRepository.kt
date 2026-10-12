@@ -48,10 +48,25 @@ class CatRepository(
     }
 
     suspend fun fetchCat(tag: String? = null, isGif: Boolean = false): CatImage = withContext(Dispatchers.IO) {
-        val dto = when {
-            isGif -> api.getRandomGif()
-            tag != null && tag.isNotBlank() && tag != "all" && tag != "random" -> api.getCatByTag(tag.lowercase())
-            else -> api.getRandomCat()
+        val dto = try {
+            when {
+                isGif -> api.getRandomGif()
+                tag != null && tag.isNotBlank() && !tag.equals("all", ignoreCase = true) && !tag.equals("random", ignoreCase = true) -> {
+                    try {
+                        api.getCatByTag(tag)
+                    } catch (e: Exception) {
+                        try {
+                            api.getCatByTag(tag.lowercase())
+                        } catch (e2: Exception) {
+                            // Automatically fallback to a random cat if tag has no images (never show 404!)
+                            api.getRandomCat()
+                        }
+                    }
+                }
+                else -> api.getRandomCat()
+            }
+        } catch (e: Exception) {
+            api.getRandomCat()
         }
 
         val catId = if (dto.finalId.isNotBlank()) dto.finalId else UUID.randomUUID().toString()
@@ -123,17 +138,25 @@ class CatRepository(
             deleteOfflineImage(cat.id)
             false
         } else {
-            // Download and save locally for offline access
-            val localPath = downloadAndCacheLocally(cat.id, cat.imageUrl)
+            // Immediately insert favorite record into local database so it is saved instantly!
             val favEntity = FavoriteCatEntity(
                 id = cat.id,
                 imageUrl = cat.imageUrl,
                 tags = cat.tags.joinToString(","),
                 mimeType = cat.mimeType,
-                localFilePath = localPath,
+                localFilePath = null,
                 savedTimestamp = System.currentTimeMillis()
             )
             catDao.insertFavorite(favEntity)
+
+            // Cache offline image file in the background without blocking the UI
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                val localPath = downloadAndCacheLocally(cat.id, cat.imageUrl)
+                if (localPath != null) {
+                    val updatedEntity = favEntity.copy(localFilePath = localPath)
+                    catDao.insertFavorite(updatedEntity)
+                }
+            }
             true
         }
     }
