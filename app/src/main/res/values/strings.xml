@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Cat Playground</string>
+    <string name="tab_explore">Explore</string>
+    <string name="tab_saved">Saved</string>
+    <string name="tab_settings">Settings</string>
+    <string name="another_cat">Another cat</string>
+    <string name="favorite">Favorite</string>
+    <string name="caption">Caption</string>
+    <string name="filter">Filter</string>
+    <string name="share">Share</string>
+    <string name="download">Download</string>
+</resources>

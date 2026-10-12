@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_pastel">#FFF7EF</color>
+    <color name="primary_purple">#6050C5</color>
+    <color name="lavender">#E7DEFF</color>
+    <color name="mint">#D7F2E5</color>
+    <color name="butter">#FFE6B6</color>
+    <color name="text_dark">#29243B</color>
+</resources>

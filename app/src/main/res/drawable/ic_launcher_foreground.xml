@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:translateX="18.9"
+        android:translateY="18.9">
+        <!-- Cat head -->
+        <path
+            android:fillColor="#6050C5"
+            android:pathData="M30,30 L20,10 L42,20 C46,18 54,18 58,20 L80,10 L70,30 C85,42 85,68 70,80 C58,88 42,88 30,80 C15,68 15,42 30,30 Z" />
+        <!-- Cat ears inner -->
+        <path
+            android:fillColor="#FFE6B6"
+            android:pathData="M27,27 L22,14 L36,21 Z" />
+        <path
+            android:fillColor="#FFE6B6"
+            android:pathData="M73,27 L78,14 L64,21 Z" />
+        <!-- Cat eyes -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M35,46 A4,4 0 1,0 43,46 A4,4 0 1,0 35,46 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M57,46 A4,4 0 1,0 65,46 A4,4 0 1,0 57,46 Z" />
+        <path
+            android:fillColor="#29243B"
+            android:pathData="M39,46 A2,2 0 1,0 43,46 A2,2 0 1,0 39,46 Z" />
+        <path
+            android:fillColor="#29243B"
+            android:pathData="M61,46 A2,2 0 1,0 65,46 A2,2 0 1,0 61,46 Z" />
+        <!-- Cat nose -->
+        <path
+            android:fillColor="#FFE6B6"
+            android:pathData="M47,56 L53,56 L50,60 Z" />
+    </group>
+</vector>
